@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type HeartBeatList struct {
+type Servers struct {
 	timeOfLostContact int
 	waitDuration      int
 	name              string
@@ -16,9 +16,8 @@ type HeartBeatList struct {
 	signal            int
 }
 
-func HeartBeatSender(h *HeartBeatList) {
-	fmt.Println("Start to get...")
-	resp, err := http.Get(h.address + "/HeartBeat")
+func HeartBeatSender(s *Servers) {
+	resp, err := http.Get(s.address + "/HeartBeat")
 	if err != nil {
 		fmt.Println("Have a get err with HeartBeatSender")
 		return
@@ -31,33 +30,44 @@ func HeartBeatSender(h *HeartBeatList) {
 	}(resp.Body)
 	body, _ := ioutil.ReadAll(resp.Body)
 	fmt.Println(string(body))
-	if string(body) == h.address {
-		h.signal = 1
+	if string(body) == s.address {
+		s.signal = 1
 		return
 	}
-	h.signal = -1
+	s.signal = -1
 	return
 }
 
-func (h *HeartBeatList) initialize(name string, address string) {
-	h.name = name
-	h.address = address
-	h.timeOfLostContact = 0
-	h.waitDuration = 30
-	h.signal = 1
+func (s *Servers) IsRunning() bool {
+	return s.address != ""
+}
+
+func (s *Servers) GetName() string {
+	return s.name
+}
+
+func (s *Servers) GetAddress() string {
+	return s.address
+}
+
+func (s *Servers) initialize(name string, address string) {
+	s.name = name
+	s.address = address
+	s.timeOfLostContact = 0
+	s.waitDuration = 30
+	s.signal = 1
 	for true {
-		time.Sleep(time.Duration(h.waitDuration) * time.Second)
-		fmt.Println("Start...")
-		h.signal = 0
-		go HeartBeatSender(h)
+		time.Sleep(time.Duration(s.waitDuration) * time.Second)
+		s.signal = 0
+		go HeartBeatSender(s)
 		time.Sleep(time.Duration(1) * time.Second)
-		if h.signal == 1 {
+		if s.signal == 1 {
 			continue
-		} else if h.signal == 0 {
+		} else if s.signal == 0 {
 			time.Sleep(time.Duration(10) * time.Second)
-			if h.signal == 1 {
+			if s.signal == 1 {
 				continue
-			} else if h.signal == 0 {
+			} else if s.signal == 0 {
 				fmt.Println("Connection timed out...")
 			} else {
 				fmt.Println("Connection error")
@@ -67,5 +77,6 @@ func (h *HeartBeatList) initialize(name string, address string) {
 		}
 		break
 	}
-	h.address = ""
+	s.address = ""
+	HeartBeatLists.RefreshServer()
 }

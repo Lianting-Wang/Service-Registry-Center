@@ -20,13 +20,32 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("ParseForm: ", errRarse)
 	}
 	var httpServerResponse HttpResponse
-	for k, v := range r.Form {
-		var Servers HeartBeatList
-		go Servers.initialize(k, strings.Join(v, ""))
+	if r.Method == "POST" {
+		for k, v := range r.Form {
+			var NewServer Servers
+			go NewServer.initialize(k, strings.Join(v, ""))
+			httpServerResponse = HttpResponse{
+				k,
+				0,
+				strings.Join(v, "")}
+			returnResponse, _ := json.Marshal(&httpServerResponse)
+			_, errWrite := fmt.Fprintf(w, string(returnResponse))
+			if errWrite != nil {
+				log.Fatal("Fprintf: ", errWrite)
+			}
+			HeartBeatLists.AddServer(&NewServer)
+		}
+	} else if r.Method == "GET" {
+		code := -1
+		ServerName := strings.TrimLeft(r.URL.Path, "/")
+		address := HeartBeatLists.FindServer(ServerName)
+		if address != "" {
+			code = 0
+		}
 		httpServerResponse = HttpResponse{
-			k,
-			0,
-			strings.Join(v, "")}
+			ServerName,
+			code,
+			address}
 		returnResponse, _ := json.Marshal(&httpServerResponse)
 		_, errWrite := fmt.Fprintf(w, string(returnResponse))
 		if errWrite != nil {
